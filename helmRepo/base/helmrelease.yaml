@@ -8,7 +8,7 @@ spec:
   chart:
     spec:
       chart: bigbang
-      version: 3.2.0
+      version: 3.21.0
       sourceRef:
         kind: HelmRepository
         name: registry1
@@ -16,7 +16,7 @@ spec:
         provider: cosign
         secretRef:
           name: bigbang-cosign-pub
-### valuesFrom bottom takes precedence over top i.e common-bb-secret overwrites common-bb
+  ### valuesFrom bottom takes precedence over top i.e common-bb-secret overwrites common-bb
   valuesFrom:
     - kind: ConfigMap
       name: common-bb
@@ -24,3 +24,4 @@ spec:
     - kind: Secret
       name: common-bb-secret
       valuesKey: values.yaml
+

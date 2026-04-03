@@ -3,6 +3,19 @@ kind: Kustomization
 resources:
 - helmrepo.yaml
 - helmrelease.yaml
+- bigbang-gitrepository.yaml
+- flux-components.yaml
 - cosignsecret.yaml
 - configmap.yaml
 - common-bb-secret.enc.yaml
+replacements:
+- source:
+    kind: HelmRelease
+    name: bigbang
+    fieldPath: spec.chart.spec.version
+  targets:
+  - select:
+      kind: GitRepository
+      name: bigbang
+    fieldPaths:
+    - spec.ref.tag

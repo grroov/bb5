@@ -1,0 +1,15 @@
+# TODO: this should be pulled in as a helm repo, but that artifact is not yet available.
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata:
+  name: bigbang
+  namespace: bigbang
+spec:
+  ignore: |
+    /**/*.md
+    /**/*.txt
+    /**/*.sh
+  interval: 10m
+  url: https://repo1.dso.mil/big-bang/bigbang.git
+  ref:
+    tag: x.x.x # Automatically synced from helmRepo/base/helmrelease.yaml via kustomize replacement; env overlays that override version must also patch this tag.

@@ -32,6 +32,15 @@ This template uses Kustomize to manage Kubernetes configurations. It employs a b
 
 All configurations are stored in your Git repository. FluxCD runs in your cluster, monitors your repository, and automatically applies changes.
 
+### Fluxing the Flux
+
+Both `gitRepo/` and `helmRepo/` include a `flux-components` Kustomization in `base/` that reconciles Big Bang's Flux manifests from `./base/flux`.
+
+- `gitRepo/`: Flux components follow the Big Bang version pinned in `base/kustomization.yaml` (`resources: .../bigbang.git/base?ref=X.Y.Z`).
+- `helmRepo/`: Flux components use `GitRepository/bigbang`, and the Git tag is automatically synced from `base/helmrelease.yaml` `spec.chart.spec.version`.
+
+This means Flux controllers are managed continuously by Flux after initial bootstrap.
+
 ### Repository Structure
 
 This template is organized into two deployment strategy folders:
@@ -168,56 +177,64 @@ Follow these steps to configure your own Big Bang environment using this templat
        sops --encrypt base/common-bb-secret.yaml > base/common-bb-secret.enc.yaml
        ```
 
-     - **Add Your Secrets:** Edit the newly created `base/common-bb-secret.enc.yaml` to add essential secrets like your Iron Bank pull credentials. Use the `sops` command, which will open the file in your default editor:
+     - Encrypt the environment secret file referenced by `dev/kustomization.yaml`:
 
        ```bash
-       sops base/common-bb-secret.enc.yaml
+       sops --verbose --encrypt dev/secrets/dev-bb-secret.yaml > dev/secrets/dev-bb-secret.enc.yaml
        ```
 
-     - Inside the editor, add your secrets under the `stringData: "values.yaml"` key. Ensure the structure matches what Big Bang expects. The secret resource name should be `common-bb` for base secrets.
+   - **Add Your Secrets:** Edit the newly created `base/common-bb-secret.enc.yaml` to add essential secrets like your Iron Bank pull credentials. Use the `sops` command, which will open the file in your default editor:
 
-       ```yaml
-       # Example structure within base/secrets.enc.yaml
-       apiVersion: v1
-       kind: Secret
-       metadata:
-         name: common-bb-secret # Use 'environment-bb' for environment-specific secrets
-         namespace: bigbang
-       stringData:
-         values.yaml: |-
-           # Add your Iron Bank credentials here
-           registryCredentials:
-           - registry: registry1.dso.mil
-             username: your-iron-bank-username
-             password: your-iron-bank-pat-or-cli-secret
+     ```bash
+     sops base/common-bb-secret.enc.yaml
+     ```
 
-           # Add other required secret values below
-           # --- Existing content from bigbang-dev-cert.yaml below ---
-           # (Ensure this section remains if you keep the demo cert initially)
-           istioGateway:
-             values:
-               gateways:
-                 public:
-                   gatewayCerts:
-                   - name: public-cert
-                     tls:
-                       key:
-       ```
+   - Inside the editor, add your secrets under the `stringData: "values.yaml"` key. Ensure the structure matches what Big Bang expects. The secret resource name should be `common-bb` for base secrets.
 
-     - Save and close the editor. SOPS will automatically re-encrypt the file.
+     ```yaml
+     # Example structure within base/secrets.enc.yaml
+     apiVersion: v1
+     kind: Secret
+     metadata:
+       name: common-bb-secret # Use 'environment-bb' for environment-specific secrets
+       namespace: bigbang
+     stringData:
+       values.yaml: |-
+         # Add your Iron Bank credentials here
+         registryCredentials:
+         - registry: registry1.dso.mil
+           username: your-iron-bank-username
+           password: your-iron-bank-pat-or-cli-secret
+
+         # Add other required secret values below
+         # --- Existing content from bigbang-dev-cert.yaml below ---
+         # (Ensure this section remains if you keep the demo cert initially)
+         istioGateway:
+           values:
+             gateways:
+               public:
+                 gatewayCerts:
+                 - name: public-cert
+                   tls:
+                     key:
+     ```
+
+   - Save and close the editor. SOPS will automatically re-encrypt the file.
 
    - **Commit Encrypted Secrets:**
 
      ```bash
      cat base/common-bb-secret.enc.yaml
-     git add base/common-bb-secret.enc.yaml
+     git add base/common-bb-secret.enc.yaml dev/secrets/dev-bb-secret.enc.yaml
      # Optional: Remove the unencrypted demo cert if you added your own TLS secrets
      # git rm base/common-bb-secret.yaml
      git commit -m "feat: add initial encrypted secrets (Iron Bank creds, demo TLS)"
      git push --set-upstream origin template-demo
      ```
 
-   - **Important Security Note:** The demo TLS certificate (`base/common-bb-secret.yaml`) and its private key are public. **Do not use it for production or sensitive environments.** Replace it with your own certificate/key (added to `base/common-bb-secret.enc.yaml` or an environment-specific `environment/environment-bb-secret.enc.yaml`) or configure `cert-manager` via `configmap.yaml` values.
+    - **Important Security Note:** The demo TLS certificate (`base/common-bb-secret.yaml`) and its private key are public. **Do not use it for production or sensitive environments.** Replace it with your own certificate/key (added to `base/common-bb-secret.enc.yaml` or an environment-specific `environment/environment-bb-secret.enc.yaml`) or configure `cert-manager` via `configmap.yaml` values.
+
+    - **Local Build Note:** `kustomize build`/`kubectl kustomize` will fail if referenced encrypted files are missing. Before local rendering, generate `base/common-bb-secret.enc.yaml` and `dev/secrets/dev-bb-secret.enc.yaml` (or the equivalent files for your environment).
 
 ![SOPS GIF](gifs/sops.gif)
 
@@ -403,11 +420,15 @@ Modify your Big Bang deployment by making changes in your Git repository. Flux w
 
      ```yaml
      # In base/helmrelease.yaml
-     spec:
-       chart:
-         spec:
-           version: NEW_VERSION_TAG # Update this version
-     ```
+      spec:
+        chart:
+          spec:
+            version: NEW_VERSION_TAG # Update this version
+      ```
+
+      In `helmRepo`, this single value also updates the Flux components source tag (`GitRepository/bigbang.spec.ref.tag`) via Kustomize replacement in `base/kustomization.yaml`.
+
+      If an environment overlay later overrides the HelmRelease chart version for testing, also patch `GitRepository/bigbang.spec.ref.tag` in that overlay to keep Flux components and Big Bang aligned.
 
   3. **Update Flux Controllers:** When upgrading Big Bang significantly, you might also need to update the Flux controllers themselves by re-running `./bigbang/scripts/install_flux.sh -u $REGISTRY1_USERNAME -p $REGISTRY1_PASSWORD`
   4. Commit changes to Git. Flux will apply the updated configuration and reconcile the deployment.
