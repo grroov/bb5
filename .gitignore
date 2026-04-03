@@ -1,3 +1,6 @@
 **/.terra*
 /.vscode*
-.DS_Store
+**/.DS_Store
+**/.decrypted~secrets.enc.yaml
+**/.decrypted~common-bb-secret.enc.yaml
+gifs

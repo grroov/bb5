@@ -10,11 +10,11 @@ metadata:
   namespace: bigbang
 spec:
   interval: 1m
-  url: https://your-private-repo-domain/your-org/your-repo-name.git
+  url: https://gitlab.com/bb9999/bb.git
   ref:
     branch: main
-  secretRef:
-    name: private-git
+  # secretRef:
+  #   name: private-git
 ---
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
@@ -26,7 +26,7 @@ spec:
   sourceRef:
     kind: GitRepository
     name: environment-repo
-  path: ./dev
+  path: ./gitRepo/dev
   prune: true
   decryption:
     provider: sops
