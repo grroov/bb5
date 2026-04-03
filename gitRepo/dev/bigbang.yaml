@@ -10,7 +10,7 @@ metadata:
   namespace: bigbang
 spec:
   interval: 1m
-  url: https://gitlab.com/bb9999/bb.git
+  url: https://github.com/grroov/bb5.git
   ref:
     branch: main
   # secretRef:
